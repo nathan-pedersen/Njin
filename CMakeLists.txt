@@ -32,8 +32,26 @@ target_include_directories(imgui-sfml PUBLIC ./imgui-sfml/ ./imgui/)
 # link imgui-sfml with SFML and OpenGL
 target_link_libraries(imgui-sfml PUBLIC imgui sfml-graphics sfml-system OpenGL::GL)
 
+# other headers
+include_directories(Main PUBLIC ./nlohmann)
+
 # my program executable
-add_executable(Main ./src/Main.cpp)
+add_executable(Main 
+    ./src/Main.cpp 
+    ./src/Vec2.cpp
+    ./src/Entity.cpp
+    ./src/EntityFactory.cpp
+    ./src/Game.cpp
+)
+
+target_compile_options(Main PRIVATE
+  $<$<COMPILE_LANG_AND_ID:CXX,GNU,Clang>:
+    -Wall
+    -Wextra
+    -Wreturn-type
+    -Werror
+  >
+)
 
 # my headers
 target_include_directories(Main PRIVATE ./include/)

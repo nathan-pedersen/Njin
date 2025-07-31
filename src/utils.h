@@ -1,6 +1,9 @@
 #pragma once
+#ifndef UTILS_H
+#define UTILS_H
 
 #include <cstdint>
+#include <random>
 
 #define i8 int8_t
 #define i16 int16_t
@@ -25,4 +28,20 @@
 #define f32 float
 #define f64 double
 
-#define byte char
+inline i32 rand_in_range_i32(i32 min, i32 max)
+{
+    static std::random_device       rd;
+    static std::mt19937             gen(rd());
+    std::uniform_int_distribution<> distrib(min, max);
+    return distrib(gen);
+}
+
+inline f64 rand_in_range_f64(f64 min, f64 max)
+{
+    static std::random_device        rd;
+    static std::mt19937              gen(rd());
+    std::uniform_real_distribution<> distrib(min, max);
+    return distrib(gen);
+}
+
+#endif

@@ -1,0 +1,69 @@
+{
+    "window": {
+        "width": 1920,
+        "height": 1080,
+        "frame-limit": 60,
+        "isFullscreen": false
+    },
+    "font": {
+        "file": "path/to/font/file",
+        "size": 16,
+        "color": [
+            100,
+            100,
+            100
+        ]
+    },
+    "player": {
+        "shape-radius": 50,
+        "collision-radius": 50,
+        "speed": 10.0,
+        "fill-color": [
+            100,
+            100,
+            100
+        ],
+        "outline-color": [
+            255,
+            255,
+            255
+        ],
+        "outline-thickness": 10,
+        "shape-vertices": 8
+    },
+    "enemy": {
+        "shape-radius": 35,
+        "collision-radius": 35,
+        "min-speed": 1,
+        "max-speed": 10,
+        "outline-color": [
+            100,
+            100,
+            100
+        ],
+        "min-vertices": 3,
+        "max-vertices": 10,
+        "small-lifespan": 120,
+        "spawn-interval": 300
+    },
+    "bullet": {
+        "shape-radius": 10,
+        "collision-radius": 10,
+        "speed": 5,
+        "fill-color": [
+            100,
+            100,
+            100
+        ],
+        "outline-color": [
+            255,
+            255,
+            255
+        ],
+        "shape-vertices": 20,
+        "lifespan": 300
+    },
+    "food": {
+        "heal-amount": 20
+    }
+}

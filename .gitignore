@@ -1,0 +1,7 @@
+build/
+imgui/
+imgui-sfml/
+.cache/
+.clang-format
+.vscode/
+imgui.ini
