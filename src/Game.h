@@ -73,12 +73,12 @@ class Game
         bool             m_paused  = false;
         bool             m_running = true;
 
-        WindowSettings ws;
-        FontSettings   fs;
-        PlayerSettings ps;
-        EnemySettings  es;
-        BulletSettings bs;
-        FoodSettings   fds;
+        WindowSettings windowSettings;
+        FontSettings   fontSettings;
+        PlayerSettings playerSettings;
+        EnemySettings  enemySettings;
+        BulletSettings bulletSettings;
+        FoodSettings   foodSettings;
 
         void init(const std::string config);
         void sMovement();
