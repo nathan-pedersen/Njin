@@ -14,7 +14,6 @@ class EntityFactory
         EntityVec m_entities;
         EntityVec m_toAdd;
         EntityMap m_entityMap;
-        EntityVec m_lastTagResults;
         size_t    m_totalEntities = 0;
 
     public:
