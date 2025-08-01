@@ -68,10 +68,10 @@ struct FoodSettings
 class Game
 {
     private:
-        sf::RenderWindow m_window;
-        EntityFactory    m_entityFactory;
-        bool             m_paused  = false;
-        bool             m_running = true;
+        sf::RenderWindow* m_window;
+        EntityFactory     m_entityFactory;
+        bool              m_paused  = false;
+        bool              m_running = true;
 
         WindowSettings windowSettings;
         FontSettings   fontSettings;
@@ -81,11 +81,13 @@ class Game
         FoodSettings   foodSettings;
 
         void init(const std::string config);
+        void parseJson(std::string config);
         void sMovement();
         void sUserInput();
         void sEnemySpanwer();
         void sCollision();
         void sRender();
+        void sLifespan();
 
     public:
         Game(const std::string config);

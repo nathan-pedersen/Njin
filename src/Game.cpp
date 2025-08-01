@@ -13,6 +13,84 @@ Game::Game(const std::string config)
 void Game::init(const std::string config)
 {
     // parse json config file and set settings member structs
+    parseJson(config);
+
+    // test entities
+    auto e = m_entityFactory.addEntity("Player");
+    e->add<CTransform>(Vec2{200, 200}, Vec2{2.4, 2.4}, 1);
+    e->add<CShape>(playerSettings.shape_radius, playerSettings.shape_vertices,
+                   playerSettings.fillColor, playerSettings.outline_color,
+                   playerSettings.outline_thickness);
+    e->get<CShape>().shape.setPosition(e->get<CTransform>().pos);
+
+    auto f = m_entityFactory.addEntity("Enemy");
+    f->add<CTransform>(Vec2{1000, 1000}, Vec2{-1, 3.2}, -1);
+    f->add<CShape>(enemySettings.shape_radius,
+                   rand_in_range_i32(enemySettings.min_vertices, enemySettings.max_vertices),
+                   playerSettings.fillColor, enemySettings.outline_color,
+                   playerSettings.outline_thickness);
+    f->get<CShape>().shape.setPosition(f->get<CTransform>().pos);
+
+    auto k = m_entityFactory.addEntity("Enemy");
+    k->add<CTransform>(Vec2{1820, 140}, Vec2{-4.5, 7.9}, -1);
+    k->add<CShape>(enemySettings.shape_radius,
+                   rand_in_range_i32(enemySettings.min_vertices, enemySettings.max_vertices),
+                   playerSettings.fillColor, enemySettings.outline_color,
+                   playerSettings.outline_thickness);
+    k->get<CShape>().shape.setPosition(k->get<CTransform>().pos);
+    k->add<CLifeSpan>(120);
+
+    // window
+    m_window = new sf::RenderWindow(sf::VideoMode(windowSettings.width, windowSettings.height),
+                                    "SFML Window");
+    m_window->setPosition({50, 50});
+    m_window->setFramerateLimit(windowSettings.frame_limit);
+    (void) ImGui::SFML::Init(*m_window);
+
+    sf::Clock deltaClock;
+    sf::Clock totalTime;
+    while (m_window->isOpen())
+    {
+        sf::Event event;
+        while (m_window->pollEvent(event))
+        {
+            ImGui::SFML::ProcessEvent(*m_window, event);
+            if (event.type == sf::Event::Closed)
+            {
+                m_window->close();
+            }
+        }
+        ImGui::SFML::Update(*m_window, deltaClock.restart());
+
+        // -- imgui window setup
+        ImGui::Begin("ImGui Window!", nullptr, ImGuiWindowFlags_MenuBar);
+
+        ImGui::Checkbox("Pause", &m_paused);
+
+        ImGui::End();
+        // -- imgui window setup end
+
+        // updates
+        if (!m_paused)
+        {
+            update();
+        }
+
+        m_entityFactory.update();
+
+        // clear, draw, imgui render, display
+        m_window->clear(sf::Color(30, 30, 30));
+        // {}.draw
+        sRender();
+
+        ImGui::SFML::Render(*m_window);
+        m_window->display();
+    }
+    ImGui::SFML::Shutdown();
+}
+
+void Game::parseJson(std::string config)
+{
     std::ifstream in(config);
     if (!in.is_open())
     {
@@ -98,69 +176,101 @@ void Game::init(const std::string config)
         std::println(stderr, "JSON Error: {}", e.what());
         exit(EXIT_FAILURE);
     }
+}
 
-    // window
-    sf::RenderWindow window(sf::VideoMode(windowSettings.width, windowSettings.height),
-                            "SFML Window");
-    window.setPosition({50, 50});
-    window.setFramerateLimit(windowSettings.frame_limit);
-    (void) ImGui::SFML::Init(window);
-
-    sf::Clock deltaClock;
-    sf::Clock totalTime;
-    while (window.isOpen())
+void Game::sMovement()
+{
+    for (auto& e : m_entityFactory.getEntites())
     {
-        sf::Event event;
-        while (window.pollEvent(event))
+        if (e->has<CTransform>() && e->has<CShape>())
         {
-            ImGui::SFML::ProcessEvent(window, event);
-            if (event.type == sf::Event::Closed)
-            {
-                window.close();
-            }
+            e->get<CTransform>().pos += e->get<CTransform>().velocity;
+            e->get<CShape>().shape.setRotation(e->get<CShape>().shape.getRotation() +
+                                               e->get<CTransform>().angle);
+            e->get<CShape>().shape.setPosition(e->get<CTransform>().pos);
         }
-        ImGui::SFML::Update(window, deltaClock.restart());
-
-        // -- imgui window setup
-        ImGui::Begin("ImGui Window!", nullptr, ImGuiWindowFlags_MenuBar);
-        if (ImGui::BeginMenuBar())
-        {
-            if (ImGui::BeginMenu("File"))
-            {
-                ImGui::MenuItem("Save", "ctrl+s");
-                ImGui::EndMenu();
-            }
-            if (ImGui::BeginMenu("Edit"))
-            {
-                ImGui::MenuItem("Save", "ctrl+s");
-                ImGui::EndMenu();
-            }
-            if (ImGui::BeginMenu("View"))
-            {
-                ImGui::MenuItem("Save", "ctrl+s");
-                ImGui::EndMenu();
-            }
-            if (ImGui::BeginMenu("Go"))
-            {
-                ImGui::MenuItem("Save", "ctrl+s");
-                ImGui::EndMenu();
-            }
-            ImGui::EndMenuBar();
-        }
-
-        ImGui::End();
-        // -- imgui window setup
-
-        // updates
-
-        // clear, draw, imgui render, display
-        window.clear(sf::Color::Black);
-        // {}.draw
-
-        ImGui::SFML::Render(window);
-        window.display();
     }
-    ImGui::SFML::Shutdown();
+}
+
+void Game::sUserInput()
+{
+}
+
+void Game::sEnemySpanwer()
+{
+}
+
+void Game::sCollision()
+{
+    for (auto& e : m_entityFactory.getEntites())
+    {
+        if (!e->has<CTransform>())
+            continue;
+
+        if (e->get<CTransform>().pos.x < 0 + e->get<CShape>().shape.getRadius() ||
+            e->get<CTransform>().pos.x + e->get<CShape>().shape.getRadius() > windowSettings.width)
+        {
+            e->get<CTransform>().velocity.x *= -1;
+        }
+
+        if (e->get<CTransform>().pos.y < 0 + e->get<CShape>().shape.getRadius() ||
+            e->get<CTransform>().pos.y + e->get<CShape>().shape.getRadius() > windowSettings.height)
+        {
+            e->get<CTransform>().velocity.y *= -1;
+        }
+    }
+}
+
+void Game::sRender()
+{
+    for (auto& e : m_entityFactory.getEntites())
+    {
+        if (e->has<CShape>())
+        {
+            m_window->draw(e->get<CShape>().shape);
+        }
+    }
+}
+
+void Game::sLifespan()
+{
+    for (auto& e : m_entityFactory.getEntites())
+    {
+        if (!e->has<CLifeSpan>())
+            continue;
+
+        if (e->get<CLifeSpan>().remainingLifeSpan <= 0)
+        {
+            e->destroy();
+        }
+        e->get<CLifeSpan>().remainingLifeSpan--;
+
+        // opacity of shape based on lifespan
+        if (e->has<CShape>())
+        {
+            u8 lifespanOpacity =
+                ((f32) e->get<CLifeSpan>().remainingLifeSpan / e->get<CLifeSpan>().totalLifeSpan) *
+                255.0;
+
+            auto currentFillColor = e->get<CShape>().shape.getFillColor();
+            e->get<CShape>().shape.setFillColor(sf::Color(currentFillColor.r, currentFillColor.g,
+                                                          currentFillColor.b, lifespanOpacity));
+
+            auto currentOutlineColor = e->get<CShape>().shape.getOutlineColor();
+            e->get<CShape>().shape.setOutlineColor(
+                sf::Color(currentOutlineColor.r, currentOutlineColor.g, currentOutlineColor.b,
+                          lifespanOpacity));
+        }
+    }
+}
+
+void Game::update()
+{
+    sMovement();
+    sUserInput();
+    sEnemySpanwer();
+    sCollision();
+    sLifespan();
 }
 
 void Game::printSettings()
