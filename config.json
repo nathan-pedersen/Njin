@@ -24,11 +24,11 @@
             100
         ],
         "outline-color": [
+            100,
             255,
-            255,
-            255
+            100
         ],
-        "outline-thickness": 10,
+        "outline-thickness": 5,
         "shape-vertices": 8
     },
     "enemy": {
@@ -37,14 +37,14 @@
         "min-speed": 1,
         "max-speed": 10,
         "outline-color": [
-            100,
-            100,
+            255,
+            0,
             100
         ],
         "min-vertices": 3,
         "max-vertices": 10,
         "small-lifespan": 120,
-        "spawn-interval": 300
+        "spawn-interval": 20
     },
     "bullet": {
         "shape-radius": 10,

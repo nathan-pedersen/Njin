@@ -5,3 +5,4 @@ imgui-sfml/
 .clang-format
 .vscode/
 imgui.ini
+.vs

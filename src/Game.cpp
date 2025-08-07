@@ -15,31 +15,6 @@ void Game::init(const std::string config)
     // parse json config file and set settings member structs
     parseJson(config);
 
-    // test entities
-    auto e = m_entityFactory.addEntity("Player");
-    e->add<CTransform>(Vec2{200, 200}, Vec2{2.4, 2.4}, 1);
-    e->add<CShape>(playerSettings.shape_radius, playerSettings.shape_vertices,
-                   playerSettings.fillColor, playerSettings.outline_color,
-                   playerSettings.outline_thickness);
-    e->get<CShape>().shape.setPosition(e->get<CTransform>().pos);
-
-    auto f = m_entityFactory.addEntity("Enemy");
-    f->add<CTransform>(Vec2{1000, 1000}, Vec2{-1, 3.2}, -1);
-    f->add<CShape>(enemySettings.shape_radius,
-                   rand_in_range_i32(enemySettings.min_vertices, enemySettings.max_vertices),
-                   playerSettings.fillColor, enemySettings.outline_color,
-                   playerSettings.outline_thickness);
-    f->get<CShape>().shape.setPosition(f->get<CTransform>().pos);
-
-    auto k = m_entityFactory.addEntity("Enemy");
-    k->add<CTransform>(Vec2{1820, 140}, Vec2{-4.5, 7.9}, -1);
-    k->add<CShape>(enemySettings.shape_radius,
-                   rand_in_range_i32(enemySettings.min_vertices, enemySettings.max_vertices),
-                   playerSettings.fillColor, enemySettings.outline_color,
-                   playerSettings.outline_thickness);
-    k->get<CShape>().shape.setPosition(k->get<CTransform>().pos);
-    k->add<CLifeSpan>(120);
-
     // window
     m_window = new sf::RenderWindow(sf::VideoMode(windowSettings.width, windowSettings.height),
                                     "SFML Window");
@@ -61,6 +36,9 @@ void Game::init(const std::string config)
             }
         }
         ImGui::SFML::Update(*m_window, deltaClock.restart());
+        sf::Font f;
+        f.loadFromFile("C:\\dev\\projects\\njin\\res\\fonts\\font.ttf");
+        sf::Text t(std::to_string(totalFrames), f, 16);
 
         // -- imgui window setup
         ImGui::Begin("ImGui Window!", nullptr, ImGuiWindowFlags_MenuBar);
@@ -70,21 +48,19 @@ void Game::init(const std::string config)
         ImGui::End();
         // -- imgui window setup end
 
-        // updates
-        if (!m_paused)
-        {
-            update();
-        }
-
         m_entityFactory.update();
 
         // clear, draw, imgui render, display
         m_window->clear(sf::Color(30, 30, 30));
-        // {}.draw
-        sRender();
+
+        update();
+
+        m_window->draw(t);
+        totalFrames++;
 
         ImGui::SFML::Render(*m_window);
         m_window->display();
+        //
     }
     ImGui::SFML::Shutdown();
 }
@@ -198,6 +174,34 @@ void Game::sUserInput()
 
 void Game::sEnemySpanwer()
 {
+    Vec2 topLeftSpawnBounds;
+    Vec2 bottomRightSpawnBounds;
+
+    topLeftSpawnBounds.x = 0 + enemySettings.shape_radius;
+    topLeftSpawnBounds.y = 0 + enemySettings.shape_radius;
+
+    bottomRightSpawnBounds.x = windowSettings.width - enemySettings.shape_radius;
+    bottomRightSpawnBounds.y = windowSettings.height - enemySettings.shape_radius;
+
+    if (totalFrames % enemySettings.spawn_interval == 0)
+    {
+        // spawn enemy
+        auto a = m_entityFactory.addEntity("Enemy");
+        a->add<CTransform>(
+            Vec2::randomPointInBounds(topLeftSpawnBounds, bottomRightSpawnBounds),
+            Vec2(rand_in_range_f64(enemySettings.min_speed, enemySettings.max_speed) *
+                     rand_in_range_f64(-1.0, 1.0),
+                 rand_in_range_f64(enemySettings.min_speed, enemySettings.max_speed) *
+                     rand_in_range_f64(-1.0, 1.0)),
+            rand_in_range_f64(-1.0, 1.0));
+
+        a->add<CShape>(enemySettings.shape_radius,
+                       rand_in_range_i32(enemySettings.min_vertices, enemySettings.max_vertices),
+                       playerSettings.fillColor, enemySettings.outline_color,
+                       playerSettings.outline_thickness);
+
+        a->get<CShape>().shape.setPosition(a->get<CTransform>().pos);
+    }
 }
 
 void Game::sCollision()
@@ -266,11 +270,16 @@ void Game::sLifespan()
 
 void Game::update()
 {
-    sMovement();
-    sUserInput();
-    sEnemySpanwer();
-    sCollision();
-    sLifespan();
+    if (!m_paused)
+    {
+        sMovement();
+        sUserInput();
+        sEnemySpanwer();
+        sCollision();
+        sLifespan();
+    }
+
+    sRender();
 }
 
 void Game::printSettings()

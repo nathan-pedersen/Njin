@@ -34,5 +34,6 @@ class Vec2
         f32  length();
         void normalize();
         Vec2 normalized() const;
+        static Vec2 randomPointInBounds(const Vec2& topLeft, const Vec2& bottomRight);
         void print() const;
 };

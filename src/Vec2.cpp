@@ -75,6 +75,13 @@ Vec2 Vec2::normalized() const
     return tmp;
 }
 
+Vec2 Vec2::randomPointInBounds(const Vec2& topLeft, const Vec2& bottomRight)
+{
+    i32 x = rand_in_range_i32(topLeft.x, bottomRight.x);
+    i32 y = rand_in_range_i32(topLeft.y, bottomRight.y);
+    return Vec2(x, y);
+}
+
 void Vec2::print() const
 {
     std::println("[{}, {}]", x, y);

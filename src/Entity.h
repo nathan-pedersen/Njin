@@ -7,8 +7,9 @@
 #include "CLifeSpan.h"
 #include "CShape.h"
 #include "CTransform.h"
+#include "CInput.h"
 
-using ComponentTuple = std::tuple<CShape, CTransform, CLifeSpan>;
+using ComponentTuple = std::tuple<CShape, CTransform, CLifeSpan, CInput>;
 
 class Entity
 {

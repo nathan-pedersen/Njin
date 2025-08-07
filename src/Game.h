@@ -80,6 +80,8 @@ class Game
         BulletSettings bulletSettings;
         FoodSettings   foodSettings;
 
+        u32 totalFrames = 0;
+
         void init(const std::string config);
         void parseJson(std::string config);
         void sMovement();
