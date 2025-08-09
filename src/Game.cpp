@@ -167,9 +167,13 @@ void Game::sMovement()
 {
     for (auto& e : m_entityFactory.getEntites())
     {
-        if (e->has<CTransform>() && e->has<CShape>())
+        if (e->has<CTransform>())
         {
             e->get<CTransform>().pos += e->get<CTransform>().velocity;
+        }
+
+        if (e->has<CTransform>() && e->has<CShape>())
+        {
             e->get<CShape>().shape.setPosition(e->get<CTransform>().pos);
 
             // make enemies constantly rotate, anything else (just player right now) will not constantly rotate.
