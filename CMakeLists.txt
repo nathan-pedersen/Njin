@@ -44,6 +44,18 @@ add_executable(Main
     ./src/Game.cpp
 )
 
+# --- runtime config.json next to the exe ---
+# If your file lives somewhere else, change the path accordingly.
+set(CONFIG_FILE "${CMAKE_SOURCE_DIR}/config.json")
+
+add_custom_command(
+    TARGET Main POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+            "${CONFIG_FILE}"
+            $<TARGET_FILE_DIR:Main>
+    VERBATIM
+)
+
 target_compile_options(Main PRIVATE
   $<$<COMPILE_LANG_AND_ID:CXX,GNU,Clang>:
     -Wall

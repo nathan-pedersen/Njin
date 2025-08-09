@@ -6,8 +6,8 @@
         "isFullscreen": false
     },
     "font": {
-        "file": "path/to/font/file",
-        "size": 16,
+        "file": "../../../res/fonts/font.ttf",
+        "size": 32,
         "color": [
             100,
             100,
@@ -19,17 +19,17 @@
         "collision-radius": 50,
         "speed": 10.0,
         "fill-color": [
-            100,
-            100,
-            100
+            99,
+            95,
+            112
         ],
         "outline-color": [
-            100,
-            255,
-            100
+            15,
+            197,
+            217
         ],
         "outline-thickness": 5,
-        "shape-vertices": 8
+        "shape-vertices": 3
     },
     "enemy": {
         "shape-radius": 35,
@@ -37,14 +37,14 @@
         "min-speed": 1,
         "max-speed": 10,
         "outline-color": [
-            255,
-            0,
-            100
+            207,
+            23,
+            10
         ],
         "min-vertices": 3,
         "max-vertices": 10,
         "small-lifespan": 120,
-        "spawn-interval": 20
+        "spawn-interval": 300
     },
     "bullet": {
         "shape-radius": 10,

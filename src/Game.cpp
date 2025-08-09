@@ -15,12 +15,23 @@ void Game::init(const std::string config)
     // parse json config file and set settings member structs
     parseJson(config);
 
+    // load font
+    sf::Font f;
+    f.loadFromFile(fontSettings.file);
+
     // window
     m_window = new sf::RenderWindow(sf::VideoMode(windowSettings.width, windowSettings.height),
                                     "SFML Window");
     m_window->setPosition({50, 50});
     m_window->setFramerateLimit(windowSettings.frame_limit);
     (void) ImGui::SFML::Init(*m_window);
+
+    // create player entity
+    auto player = m_entityFactory.addEntity("Player");
+    player->add<CTransform>(Vec2(windowSettings.width / 2, windowSettings.height / 2), Vec2(0,0), 45);
+    player->add<CShape>(playerSettings.shape_radius, playerSettings.shape_vertices, playerSettings.fillColor, playerSettings.outline_color, playerSettings.outline_thickness);
+    player->add<CInput>();
+
 
     sf::Clock deltaClock;
     sf::Clock totalTime;
@@ -36,9 +47,8 @@ void Game::init(const std::string config)
             }
         }
         ImGui::SFML::Update(*m_window, deltaClock.restart());
-        sf::Font f;
-        f.loadFromFile("C:\\dev\\projects\\njin\\res\\fonts\\font.ttf");
-        sf::Text t(std::to_string(totalFrames), f, 16);
+        sf::Text t(std::to_string(m_totalFrames), f, fontSettings.size);
+        t.setFillColor(fontSettings.color);
 
         // -- imgui window setup
         ImGui::Begin("ImGui Window!", nullptr, ImGuiWindowFlags_MenuBar);
@@ -56,7 +66,6 @@ void Game::init(const std::string config)
         update();
 
         m_window->draw(t);
-        totalFrames++;
 
         ImGui::SFML::Render(*m_window);
         m_window->display();
@@ -161,9 +170,19 @@ void Game::sMovement()
         if (e->has<CTransform>() && e->has<CShape>())
         {
             e->get<CTransform>().pos += e->get<CTransform>().velocity;
-            e->get<CShape>().shape.setRotation(e->get<CShape>().shape.getRotation() +
-                                               e->get<CTransform>().angle);
             e->get<CShape>().shape.setPosition(e->get<CTransform>().pos);
+
+            // make enemies constantly rotate, anything else (just player right now) will not constantly rotate.
+            if (e->tag() == "Enemy")
+            {
+                e->get<CShape>().shape.setRotation(e->get<CShape>().shape.getRotation() +
+                                                   e->get<CTransform>().angle);
+            }
+            else
+            {
+                e->get<CShape>().shape.setRotation(e->get<CTransform>().angle);
+            }
+                
         }
     }
 }
@@ -174,6 +193,11 @@ void Game::sUserInput()
 
 void Game::sEnemySpanwer()
 {
+    if (m_entityFactory.getEntites("Enemy").size() == 4)
+    {
+        return;
+    }
+
     Vec2 topLeftSpawnBounds;
     Vec2 bottomRightSpawnBounds;
 
@@ -183,7 +207,7 @@ void Game::sEnemySpanwer()
     bottomRightSpawnBounds.x = windowSettings.width - enemySettings.shape_radius;
     bottomRightSpawnBounds.y = windowSettings.height - enemySettings.shape_radius;
 
-    if (totalFrames % enemySettings.spawn_interval == 0)
+    if (m_totalFrames % enemySettings.spawn_interval == 0)
     {
         // spawn enemy
         auto a = m_entityFactory.addEntity("Enemy");
@@ -277,6 +301,7 @@ void Game::update()
         sEnemySpanwer();
         sCollision();
         sLifespan();
+        m_totalFrames++;
     }
 
     sRender();

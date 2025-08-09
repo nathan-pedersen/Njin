@@ -72,6 +72,7 @@ class Game
         EntityFactory     m_entityFactory;
         bool              m_paused  = false;
         bool              m_running = true;
+        u32               m_totalFrames = 0;
 
         WindowSettings windowSettings;
         FontSettings   fontSettings;
@@ -79,8 +80,6 @@ class Game
         EnemySettings  enemySettings;
         BulletSettings bulletSettings;
         FoodSettings   foodSettings;
-
-        u32 totalFrames = 0;
 
         void init(const std::string config);
         void parseJson(std::string config);
