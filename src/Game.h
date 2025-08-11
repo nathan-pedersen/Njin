@@ -85,6 +85,8 @@ class Game
         const sf::Time m_specialCooldown = sf::milliseconds(100);
         u32            m_specialShots    = 0;
 
+        u32 m_points = 0;
+
         WindowSettings windowSettings;
         FontSettings   fontSettings;
         PlayerSettings playerSettings;

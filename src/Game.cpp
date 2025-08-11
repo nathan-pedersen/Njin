@@ -79,8 +79,10 @@ void Game::init(const std::string config)
         }
 
         ImGui::SFML::Update(*m_window, m_deltaClock.restart());
-        sf::Text t(std::to_string(m_totalFrames), f, fontSettings.size);
+        sf::Text t(std::to_string(m_points), f, fontSettings.size);
         t.setFillColor(fontSettings.color);
+        t.setOutlineColor(sf::Color::Black);
+        t.setOutlineThickness(1.0f);
         sf::Text p("PAUSED", f, 72);
         p.setFillColor(sf::Color::Red);
         p.setOutlineColor(sf::Color::Black);
@@ -708,6 +710,7 @@ void Game::sCollision()
             {
                 b->destroy();
                 e->destroy();
+                m_points += 100;
             }
         }
     }
