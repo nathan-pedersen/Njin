@@ -11,6 +11,7 @@ class CInput : public Component
         bool right   = false;
         bool shoot   = false;
         bool shotgun = false;
+        bool special = false;
 
         CInput() = default;
 };
