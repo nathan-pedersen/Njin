@@ -8,8 +8,9 @@
 #include "CShape.h"
 #include "CTransform.h"
 #include "CInput.h"
+#include "CCollision.h"
 
-using ComponentTuple = std::tuple<CShape, CTransform, CLifeSpan, CInput>;
+using ComponentTuple = std::tuple<CShape, CTransform, CLifeSpan, CInput, CCollision>;
 
 class Entity
 {
