@@ -15,8 +15,8 @@
         ]
     },
     "player": {
-        "shape-radius": 50,
-        "collision-radius": 50,
+        "shape-radius": 40,
+        "collision-radius": 40,
         "speed": 10.0,
         "fill-color": [
             99,
@@ -29,11 +29,11 @@
             217
         ],
         "outline-thickness": 5,
-        "shape-vertices": 3
+        "shape-vertices": 255
     },
     "enemy": {
         "shape-radius": 35,
-        "collision-radius": 35,
+        "collision-radius": 40,
         "min-speed": 1,
         "max-speed": 10,
         "outline-color": [
@@ -44,12 +44,12 @@
         "min-vertices": 3,
         "max-vertices": 10,
         "small-lifespan": 120,
-        "spawn-interval": 300
+        "spawn-interval": 30
     },
     "bullet": {
-        "shape-radius": 10,
-        "collision-radius": 10,
-        "speed": 5,
+        "shape-radius": 5,
+        "collision-radius": 5,
+        "speed": 35,
         "fill-color": [
             100,
             100,
@@ -61,7 +61,7 @@
             255
         ],
         "shape-vertices": 20,
-        "lifespan": 300
+        "lifespan": 25
     },
     "food": {
         "heal-amount": 20
