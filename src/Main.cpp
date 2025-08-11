@@ -15,7 +15,7 @@ int main(void)
     // --- testing end
 
     // --- Actual program start ---
-    Game game("config.json");
+    Game game("../../../config.json");
 
     return 0;
 }
