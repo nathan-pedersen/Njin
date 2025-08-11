@@ -76,13 +76,13 @@ class Game
         sf::Clock         m_deltaClock;
 
         sf::Clock      m_bulletClock;
-        const sf::Time m_bulletCooldown = sf::milliseconds(150);
+        const sf::Time m_bulletCooldown = sf::milliseconds(1);
         u32            m_bulletShots    = 0;
         sf::Clock      m_shotgunClock;
-        const sf::Time m_shotgunCooldown = sf::milliseconds(600);
+        const sf::Time m_shotgunCooldown = sf::milliseconds(50);
         u32            m_shotgunShots    = 0;
         sf::Clock      m_specialClock;
-        const sf::Time m_specialCooldown = sf::milliseconds(15000);
+        const sf::Time m_specialCooldown = sf::milliseconds(100);
         u32            m_specialShots    = 0;
 
         WindowSettings windowSettings;

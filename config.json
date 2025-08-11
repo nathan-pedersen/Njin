@@ -44,11 +44,11 @@
         "min-vertices": 3,
         "max-vertices": 10,
         "small-lifespan": 120,
-        "spawn-interval": 30
+        "spawn-interval": 5
     },
     "bullet": {
-        "shape-radius": 5,
-        "collision-radius": 5,
+        "shape-radius": 4,
+        "collision-radius": 7,
         "speed": 35,
         "fill-color": [
             100,
@@ -56,11 +56,11 @@
             100
         ],
         "outline-color": [
-            255,
-            255,
-            255
+            0,
+            0,
+            0
         ],
-        "shape-vertices": 20,
+        "shape-vertices": 8,
         "lifespan": 25
     },
     "food": {

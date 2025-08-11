@@ -96,6 +96,7 @@ Vec2<T> Vec2<T>::randomPointInBounds(const Vec2<T>& topLeft, const Vec2<T>& bott
     return Vec2<T>(x, y);
 }
 
+template <>
 Vec2<f32> Vec2<f32>::rotate(f32 degrees) const
 {
     f32 radians = degrees * (M_PI / 180.0f);
@@ -113,5 +114,5 @@ void Vec2<T>::print() const
 }
 
 // Explicit instantiations for the types you use, e.g. float, int
-template class Vec2<float>;
+template class Vec2<f32>;
 template class Vec2<int>;

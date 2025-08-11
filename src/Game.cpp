@@ -31,6 +31,7 @@ void Game::init(const std::string config)
     m_window->setVerticalSyncEnabled(true);
     m_window->setPosition({50, 50});
     m_window->setFramerateLimit(windowSettings.frame_limit);
+    m_window->setKeyRepeatEnabled(false);
     (void) ImGui::SFML::Init(*m_window);
 
     // create player entity
@@ -61,10 +62,29 @@ void Game::init(const std::string config)
             ImGui::SFML::ProcessEvent(*m_window, event);
             if (event.type == sf::Event::Closed)
                 m_window->close();
+            else if (event.type == sf::Event::Resized)
+            {
+                windowSettings.width  = event.size.width;
+                windowSettings.height = event.size.height;
+
+                sf::View view = m_window->getView();
+                view.reset(sf::FloatRect(0.0f, 0.0f, static_cast<float>(windowSettings.width),
+                                         static_cast<float>(windowSettings.height)));
+                m_window->setView(view);
+            }
+            else if (event.type == sf::Event::KeyPressed && event.key.code == sf::Keyboard::Escape)
+            {
+                m_paused = !m_paused;
+            }
         }
+
         ImGui::SFML::Update(*m_window, m_deltaClock.restart());
         sf::Text t(std::to_string(m_totalFrames), f, fontSettings.size);
         t.setFillColor(fontSettings.color);
+        sf::Text p("PAUSED", f, 72);
+        p.setFillColor(sf::Color::Red);
+        p.setOutlineColor(sf::Color::Black);
+        p.setOutlineThickness(1.0f);
 
         // -- imgui window setup
         ImGui::Begin("ImGui Window!", nullptr, ImGuiWindowFlags_MenuBar);
@@ -74,33 +94,45 @@ void Game::init(const std::string config)
         ImGui::Text("left: %d, right: %d", player->get<CInput>().left, player->get<CInput>().right);
         ImGui::Text("shoot: %d", player->get<CInput>().shoot);
         ImGui::Checkbox("Pause", &m_paused);
+        ImGui::Text("Width: %ld", windowSettings.width);
+        ImGui::Text("Height: %ld", windowSettings.height);
 
-        for (auto& e : m_entityFactory.getEntites())
+        if (ImGui::CollapsingHeader("Entities"))
         {
-            if (e->tag() == "Player" || e->tag() == "Player_Pointer")
-            {
-                ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.0f, 1.0f, 0.3f, 1.0f));
-            }
-            else if (e->tag() == "Enemy")
-            {
-                ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(1.0f, 0.0f, 0.3f, 1.0f));
-            }
-            else
-            {
-                ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.0f, 0.3f, 1.0f, 1.0f));
-            }
-            ImGui::Text("[%d] - %s", e->id(), e->tag().c_str());
-            if (e->has<CTransform>())
-            {
+            for (auto& e : m_entityFactory.getEntites())
+            {   
+                ImGui::PushID(e->id());
+                if (ImGui::SmallButton("X"))
+                {
+                    e->destroy();
+                }
                 ImGui::SameLine();
-                ImGui::Text("@ [%.2f,%.2f], vel [%.2f,%.2f]", e->get<CTransform>().pos.x,
-                            e->get<CTransform>().pos.y, e->get<CTransform>().velocity.x,
-                            e->get<CTransform>().velocity.y);
-            }
+                if (e->tag() == "Player" || e->tag() == "Player_Pointer")
+                {
+                    ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.0f, 1.0f, 0.3f, 1.0f));
+                }
+                else if (e->tag() == "Enemy")
+                {
+                    ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(1.0f, 0.0f, 0.3f, 1.0f));
+                }
+                else
+                {
+                    ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.0f, 0.3f, 1.0f, 1.0f));
+                }
+                ImGui::Text("[%d] - %s", e->id(), e->tag().c_str());
+                if (e->has<CTransform>())
+                {
+                    ImGui::SameLine();
+                    ImGui::Text("@ [%.2f,%.2f], vel [%.2f,%.2f]", e->get<CTransform>().pos.x,
+                                e->get<CTransform>().pos.y, e->get<CTransform>().velocity.x,
+                                e->get<CTransform>().velocity.y);
+                }
 
-            ImGui::SameLine();
-            ImGui::Text("[%s]", (e->isAlive()) ? "alive" : "marked destroyed");
-            ImGui::PopStyleColor();
+                ImGui::SameLine();
+                ImGui::Text("[%s]", (e->isAlive()) ? "alive" : "marked destroyed");
+                ImGui::PopStyleColor();
+                ImGui::PopID();
+            }
         }
 
         ImGui::End();
@@ -112,6 +144,13 @@ void Game::init(const std::string config)
         update();
 
         m_window->draw(t);
+        if (m_paused)
+        {
+            sf::FloatRect b = p.getLocalBounds();
+            p.setOrigin(b.left + b.width * 0.5f, b.top + b.height * 0.5f);
+            p.setPosition({static_cast<f32>(windowSettings.width) / 2.0f, static_cast<f32>(windowSettings.height) / 2.0f});
+            m_window->draw(p);
+        }
 
         ImGui::SFML::Render(*m_window);
         m_window->display();
@@ -374,121 +413,189 @@ void Game::sUserInput()
             if (in.special &&
                 (m_specialClock.getElapsedTime() >= m_specialCooldown || m_specialShots == 0))
             {
-                for (int i = 0; i < 3; i++)
-                {
-                    auto pellet1 = m_entityFactory.addEntity("Bullet");
-                    auto pellet2 = m_entityFactory.addEntity("Bullet");
-                    auto pellet3 = m_entityFactory.addEntity("Bullet");
-                    auto pellet4 = m_entityFactory.addEntity("Bullet");
-                    auto pellet5 = m_entityFactory.addEntity("Bullet");
-                    auto pellet6 = m_entityFactory.addEntity("Bullet");
-                    auto pellet7 = m_entityFactory.addEntity("Bullet");
-                    auto pellet8 = m_entityFactory.addEntity("Bullet");
-                    auto pellet9 = m_entityFactory.addEntity("Bullet");
+                auto pellet1  = m_entityFactory.addEntity("Bullet");
+                auto pellet2  = m_entityFactory.addEntity("Bullet");
+                auto pellet3  = m_entityFactory.addEntity("Bullet");
+                auto pellet4  = m_entityFactory.addEntity("Bullet");
+                auto pellet5  = m_entityFactory.addEntity("Bullet");
+                auto pellet6  = m_entityFactory.addEntity("Bullet");
+                auto pellet7  = m_entityFactory.addEntity("Bullet");
+                auto pellet8  = m_entityFactory.addEntity("Bullet");
+                auto pellet9  = m_entityFactory.addEntity("Bullet");
+                auto pellet10 = m_entityFactory.addEntity("Bullet");
+                auto pellet11 = m_entityFactory.addEntity("Bullet");
+                auto pellet12 = m_entityFactory.addEntity("Bullet");
+                auto pellet13 = m_entityFactory.addEntity("Bullet");
+                auto pellet14 = m_entityFactory.addEntity("Bullet");
+                auto pellet15 = m_entityFactory.addEntity("Bullet");
+                auto pellet16 = m_entityFactory.addEntity("Bullet");
+                auto pellet17 = m_entityFactory.addEntity("Bullet");
+                auto pellet18 = m_entityFactory.addEntity("Bullet");
 
-                    sf::Vector2i _mp    = sf::Mouse::getPosition(*m_window);
-                    Vec2<i32>    mp     = {_mp.x, _mp.y};
-                    Vec2<i32>    ppos   = {static_cast<i32>(player->get<CTransform>().pos.x),
-                                           static_cast<i32>(player->get<CTransform>().pos.y)};
-                    Vec2<i32>    sub    = mp - ppos;
-                    Vec2<f32>    subf   = {static_cast<f32>(sub.x), static_cast<f32>(sub.y)};
-                    Vec2<f32>    subfns = subf.normalized() * bulletSettings.speed;
+                sf::Vector2i _mp    = sf::Mouse::getPosition(*m_window);
+                Vec2<i32>    mp     = {_mp.x, _mp.y};
+                Vec2<i32>    ppos   = {static_cast<i32>(player->get<CTransform>().pos.x),
+                                       static_cast<i32>(player->get<CTransform>().pos.y)};
+                Vec2<i32>    sub    = mp - ppos;
+                Vec2<f32>    subf   = {static_cast<f32>(sub.x), static_cast<f32>(sub.y)};
+                Vec2<f32>    subfns = subf.normalized() * bulletSettings.speed;
 
-                    f32       rot   = 20.0f;
-                    Vec2<f32> vel_1 = subfns;
-                    Vec2<f32> vel_2 = subfns.rotate(40 + ((f32) i * rot));
-                    Vec2<f32> vel_3 = subfns.rotate(80 + ((f32) i * rot));
-                    Vec2<f32> vel_4 = subfns.rotate(120 + ((f32) i * rot));
-                    Vec2<f32> vel_5 = subfns.rotate(160 + ((f32) i * rot));
-                    Vec2<f32> vel_6 = subfns.rotate(200 + ((f32) i * rot));
-                    Vec2<f32> vel_7 = subfns.rotate(240 + ((f32) i * rot));
-                    Vec2<f32> vel_8 = subfns.rotate(280 + ((f32) i * rot));
-                    Vec2<f32> vel_9 = subfns.rotate(320 + ((f32) i * rot));
+                Vec2<f32> vel_1  = subfns;
+                Vec2<f32> vel_2  = subfns.rotate(20);
+                Vec2<f32> vel_3  = subfns.rotate(40);
+                Vec2<f32> vel_4  = subfns.rotate(60);
+                Vec2<f32> vel_5  = subfns.rotate(80);
+                Vec2<f32> vel_6  = subfns.rotate(100);
+                Vec2<f32> vel_7  = subfns.rotate(120);
+                Vec2<f32> vel_8  = subfns.rotate(140);
+                Vec2<f32> vel_9  = subfns.rotate(160);
+                Vec2<f32> vel_10 = subfns.rotate(180);
+                Vec2<f32> vel_11 = subfns.rotate(200);
+                Vec2<f32> vel_12 = subfns.rotate(220);
+                Vec2<f32> vel_13 = subfns.rotate(240);
+                Vec2<f32> vel_14 = subfns.rotate(260);
+                Vec2<f32> vel_15 = subfns.rotate(280);
+                Vec2<f32> vel_16 = subfns.rotate(300);
+                Vec2<f32> vel_17 = subfns.rotate(320);
+                Vec2<f32> vel_18 = subfns.rotate(340);
 
-                    //
-                    pellet1->add<CTransform>(player->get<CTransform>().pos, vel_1,
-                                             rand_in_range_f64(-1.0f, 1.0f));
-                    pellet1->add<CShape>(bulletSettings.shape_radius, bulletSettings.shape_vertices,
-                                         bulletSettings.fill_color, bulletSettings.outline_color,
-                                         1);
-                    pellet1->add<CLifeSpan>(300);
-                    pellet1->add<CCollision>(bulletSettings.collision_radius);
+                auto lifespan = 120;
+                //
+                pellet1->add<CTransform>(player->get<CTransform>().pos, vel_1,
+                                         rand_in_range_f64(-1.0f, 1.0f));
+                pellet1->add<CShape>(bulletSettings.shape_radius, bulletSettings.shape_vertices,
+                                     bulletSettings.fill_color, bulletSettings.outline_color, 1);
+                pellet1->add<CLifeSpan>(lifespan);
+                pellet1->add<CCollision>(bulletSettings.collision_radius);
 
-                    //
-                    pellet2->add<CTransform>(player->get<CTransform>().pos, vel_2,
-                                             rand_in_range_f64(-1.0f, 1.0f));
-                    pellet2->add<CShape>(bulletSettings.shape_radius, bulletSettings.shape_vertices,
-                                         bulletSettings.fill_color, bulletSettings.outline_color,
-                                         1);
-                    pellet2->add<CLifeSpan>(300);
-                    pellet2->add<CCollision>(bulletSettings.collision_radius);
+                //
+                pellet2->add<CTransform>(player->get<CTransform>().pos, vel_2,
+                                         rand_in_range_f64(-1.0f, 1.0f));
+                pellet2->add<CShape>(bulletSettings.shape_radius, bulletSettings.shape_vertices,
+                                     bulletSettings.fill_color, bulletSettings.outline_color, 1);
+                pellet2->add<CLifeSpan>(lifespan);
+                pellet2->add<CCollision>(bulletSettings.collision_radius);
 
-                    //
-                    pellet3->add<CTransform>(player->get<CTransform>().pos, vel_3,
-                                             rand_in_range_f64(-1.0f, 1.0f));
-                    pellet3->add<CShape>(bulletSettings.shape_radius, bulletSettings.shape_vertices,
-                                         bulletSettings.fill_color, bulletSettings.outline_color,
-                                         1);
-                    pellet3->add<CLifeSpan>(300);
-                    pellet3->add<CCollision>(bulletSettings.collision_radius);
+                //
+                pellet3->add<CTransform>(player->get<CTransform>().pos, vel_3,
+                                         rand_in_range_f64(-1.0f, 1.0f));
+                pellet3->add<CShape>(bulletSettings.shape_radius, bulletSettings.shape_vertices,
+                                     bulletSettings.fill_color, bulletSettings.outline_color, 1);
+                pellet3->add<CLifeSpan>(lifespan);
+                pellet3->add<CCollision>(bulletSettings.collision_radius);
 
-                    //
-                    pellet4->add<CTransform>(player->get<CTransform>().pos, vel_4,
-                                             rand_in_range_f64(-1.0f, 1.0f));
-                    pellet4->add<CShape>(bulletSettings.shape_radius, bulletSettings.shape_vertices,
-                                         bulletSettings.fill_color, bulletSettings.outline_color,
-                                         1);
-                    pellet4->add<CLifeSpan>(300);
-                    pellet4->add<CCollision>(bulletSettings.collision_radius);
+                //
+                pellet4->add<CTransform>(player->get<CTransform>().pos, vel_4,
+                                         rand_in_range_f64(-1.0f, 1.0f));
+                pellet4->add<CShape>(bulletSettings.shape_radius, bulletSettings.shape_vertices,
+                                     bulletSettings.fill_color, bulletSettings.outline_color, 1);
+                pellet4->add<CLifeSpan>(lifespan);
+                pellet4->add<CCollision>(bulletSettings.collision_radius);
 
-                    //
-                    pellet5->add<CTransform>(player->get<CTransform>().pos, vel_5,
-                                             rand_in_range_f64(-1.0f, 1.0f));
-                    pellet5->add<CShape>(bulletSettings.shape_radius, bulletSettings.shape_vertices,
-                                         bulletSettings.fill_color, bulletSettings.outline_color,
-                                         1);
-                    pellet5->add<CLifeSpan>(300);
-                    pellet5->add<CCollision>(bulletSettings.collision_radius);
+                //
+                pellet5->add<CTransform>(player->get<CTransform>().pos, vel_5,
+                                         rand_in_range_f64(-1.0f, 1.0f));
+                pellet5->add<CShape>(bulletSettings.shape_radius, bulletSettings.shape_vertices,
+                                     bulletSettings.fill_color, bulletSettings.outline_color, 1);
+                pellet5->add<CLifeSpan>(lifespan);
+                pellet5->add<CCollision>(bulletSettings.collision_radius);
 
-                    //
-                    pellet6->add<CTransform>(player->get<CTransform>().pos, vel_6,
-                                             rand_in_range_f64(-1.0f, 1.0f));
-                    pellet6->add<CShape>(bulletSettings.shape_radius, bulletSettings.shape_vertices,
-                                         bulletSettings.fill_color, bulletSettings.outline_color,
-                                         1);
-                    pellet6->add<CLifeSpan>(300);
-                    pellet6->add<CCollision>(bulletSettings.collision_radius);
+                //
+                pellet6->add<CTransform>(player->get<CTransform>().pos, vel_6,
+                                         rand_in_range_f64(-1.0f, 1.0f));
+                pellet6->add<CShape>(bulletSettings.shape_radius, bulletSettings.shape_vertices,
+                                     bulletSettings.fill_color, bulletSettings.outline_color, 1);
+                pellet6->add<CLifeSpan>(lifespan);
+                pellet6->add<CCollision>(bulletSettings.collision_radius);
 
-                    //
-                    pellet7->add<CTransform>(player->get<CTransform>().pos, vel_7,
-                                             rand_in_range_f64(-1.0f, 1.0f));
-                    pellet7->add<CShape>(bulletSettings.shape_radius, bulletSettings.shape_vertices,
-                                         bulletSettings.fill_color, bulletSettings.outline_color,
-                                         1);
-                    pellet7->add<CLifeSpan>(300);
-                    pellet7->add<CCollision>(bulletSettings.collision_radius);
+                //
+                pellet7->add<CTransform>(player->get<CTransform>().pos, vel_7,
+                                         rand_in_range_f64(-1.0f, 1.0f));
+                pellet7->add<CShape>(bulletSettings.shape_radius, bulletSettings.shape_vertices,
+                                     bulletSettings.fill_color, bulletSettings.outline_color, 1);
+                pellet7->add<CLifeSpan>(lifespan);
+                pellet7->add<CCollision>(bulletSettings.collision_radius);
 
-                    //
-                    pellet8->add<CTransform>(player->get<CTransform>().pos, vel_8,
-                                             rand_in_range_f64(-1.0f, 1.0f));
-                    pellet8->add<CShape>(bulletSettings.shape_radius, bulletSettings.shape_vertices,
-                                         bulletSettings.fill_color, bulletSettings.outline_color,
-                                         1);
-                    pellet8->add<CLifeSpan>(300);
-                    pellet8->add<CCollision>(bulletSettings.collision_radius);
+                //
+                pellet8->add<CTransform>(player->get<CTransform>().pos, vel_8,
+                                         rand_in_range_f64(-1.0f, 1.0f));
+                pellet8->add<CShape>(bulletSettings.shape_radius, bulletSettings.shape_vertices,
+                                     bulletSettings.fill_color, bulletSettings.outline_color, 1);
+                pellet8->add<CLifeSpan>(lifespan);
+                pellet8->add<CCollision>(bulletSettings.collision_radius);
 
-                    //
-                    pellet9->add<CTransform>(player->get<CTransform>().pos, vel_9,
-                                             rand_in_range_f64(-1.0f, 1.0f));
-                    pellet9->add<CShape>(bulletSettings.shape_radius, bulletSettings.shape_vertices,
-                                         bulletSettings.fill_color, bulletSettings.outline_color,
-                                         1);
-                    pellet9->add<CLifeSpan>(300);
-                    pellet9->add<CCollision>(bulletSettings.collision_radius);
+                //
+                pellet9->add<CTransform>(player->get<CTransform>().pos, vel_9,
+                                         rand_in_range_f64(-1.0f, 1.0f));
+                pellet9->add<CShape>(bulletSettings.shape_radius, bulletSettings.shape_vertices,
+                                     bulletSettings.fill_color, bulletSettings.outline_color, 1);
+                pellet9->add<CLifeSpan>(lifespan);
 
-                    m_specialClock.restart();
-                    m_specialShots++;
-                }
+                //
+                pellet10->add<CTransform>(player->get<CTransform>().pos, vel_10,
+                                          rand_in_range_f64(-1.0f, 1.0f));
+                pellet10->add<CShape>(bulletSettings.shape_radius, bulletSettings.shape_vertices,
+                                      bulletSettings.fill_color, bulletSettings.outline_color, 1);
+                pellet10->add<CLifeSpan>(lifespan);
+
+                //
+                pellet11->add<CTransform>(player->get<CTransform>().pos, vel_11,
+                                          rand_in_range_f64(-1.0f, 1.0f));
+                pellet11->add<CShape>(bulletSettings.shape_radius, bulletSettings.shape_vertices,
+                                      bulletSettings.fill_color, bulletSettings.outline_color, 1);
+                pellet11->add<CLifeSpan>(lifespan);
+
+                //
+                pellet12->add<CTransform>(player->get<CTransform>().pos, vel_12,
+                                          rand_in_range_f64(-1.0f, 1.0f));
+                pellet12->add<CShape>(bulletSettings.shape_radius, bulletSettings.shape_vertices,
+                                      bulletSettings.fill_color, bulletSettings.outline_color, 1);
+                pellet12->add<CLifeSpan>(lifespan);
+
+                //
+                pellet13->add<CTransform>(player->get<CTransform>().pos, vel_13,
+                                          rand_in_range_f64(-1.0f, 1.0f));
+                pellet13->add<CShape>(bulletSettings.shape_radius, bulletSettings.shape_vertices,
+                                      bulletSettings.fill_color, bulletSettings.outline_color, 1);
+                pellet13->add<CLifeSpan>(lifespan);
+
+                //
+                pellet14->add<CTransform>(player->get<CTransform>().pos, vel_14,
+                                          rand_in_range_f64(-1.0f, 1.0f));
+                pellet14->add<CShape>(bulletSettings.shape_radius, bulletSettings.shape_vertices,
+                                      bulletSettings.fill_color, bulletSettings.outline_color, 1);
+                pellet14->add<CLifeSpan>(lifespan);
+
+                //
+                pellet15->add<CTransform>(player->get<CTransform>().pos, vel_15,
+                                          rand_in_range_f64(-1.0f, 1.0f));
+                pellet15->add<CShape>(bulletSettings.shape_radius, bulletSettings.shape_vertices,
+                                      bulletSettings.fill_color, bulletSettings.outline_color, 1);
+                pellet15->add<CLifeSpan>(lifespan);
+
+                //
+                pellet16->add<CTransform>(player->get<CTransform>().pos, vel_16,
+                                          rand_in_range_f64(-1.0f, 1.0f));
+                pellet16->add<CShape>(bulletSettings.shape_radius, bulletSettings.shape_vertices,
+                                      bulletSettings.fill_color, bulletSettings.outline_color, 1);
+                pellet16->add<CLifeSpan>(lifespan);
+
+                //
+                pellet17->add<CTransform>(player->get<CTransform>().pos, vel_17,
+                                          rand_in_range_f64(-1.0f, 1.0f));
+                pellet17->add<CShape>(bulletSettings.shape_radius, bulletSettings.shape_vertices,
+                                      bulletSettings.fill_color, bulletSettings.outline_color, 1);
+                pellet17->add<CLifeSpan>(lifespan);
+
+                //
+                pellet18->add<CTransform>(player->get<CTransform>().pos, vel_18,
+                                          rand_in_range_f64(-1.0f, 1.0f));
+                pellet18->add<CShape>(bulletSettings.shape_radius, bulletSettings.shape_vertices,
+                                      bulletSettings.fill_color, bulletSettings.outline_color, 1);
+                pellet18->add<CLifeSpan>(lifespan);
+
+                m_specialClock.restart();
+                m_specialShots++;
             }
         }
     }
@@ -496,7 +603,7 @@ void Game::sUserInput()
 
 void Game::sEnemySpanwer()
 {
-    if (m_entityFactory.getEntites("Enemy").size() == 20)
+    if (m_entityFactory.getEntites("Enemy").size() == 100)
     {
         return;
     }
@@ -510,12 +617,23 @@ void Game::sEnemySpanwer()
     bottomRightSpawnBounds.x = windowSettings.width - enemySettings.shape_radius;
     bottomRightSpawnBounds.y = windowSettings.height - enemySettings.shape_radius;
 
+    // generate spawn point, brute force not spawn near player kek
+    f32       dist = 0.0f;
+    Vec2<f32> spawnPoint;
+    auto      player = m_entityFactory.getEntites("Player")[0];
+
+    while (dist < enemySettings.collision_radius + playerSettings.collision_radius + 100)
+    {
+        spawnPoint = Vec2<f32>::randomPointInBounds(topLeftSpawnBounds, bottomRightSpawnBounds);
+        dist       = (player->get<CTransform>().pos - spawnPoint).length();
+    }
+
     if (m_totalFrames % enemySettings.spawn_interval == 0)
     {
         // spawn enemy
         auto a = m_entityFactory.addEntity("Enemy");
         a->add<CTransform>(
-            Vec2<f32>::randomPointInBounds(topLeftSpawnBounds, bottomRightSpawnBounds),
+            spawnPoint,
             Vec2<f32>(rand_in_range_f64(enemySettings.min_speed, enemySettings.max_speed) *
                           rand_in_range_f64(-1.0, 1.0),
                       rand_in_range_f64(enemySettings.min_speed, enemySettings.max_speed) *
@@ -530,7 +648,6 @@ void Game::sEnemySpanwer()
         a->add<CCollision>(enemySettings.collision_radius);
 
         a->get<CShape>().shape.setPosition(a->get<CTransform>().pos);
-        std::println("Spawned Enemy");
     }
 }
 
@@ -592,6 +709,28 @@ void Game::sCollision()
                 b->destroy();
                 e->destroy();
             }
+        }
+    }
+
+    // check collision between enemies and player
+    for (auto& e : m_entityFactory.getEntites("Enemy"))
+    {
+        auto vplayer = m_entityFactory.getEntites("Player");
+        auto player  = vplayer[0];
+
+        f32 dist = (e->get<CTransform>().pos - player->get<CTransform>().pos).length();
+        if (dist <= enemySettings.collision_radius + playerSettings.collision_radius)
+        {
+            // TODO: reset something on death (points, upgrades, etc)
+            m_paused = true;
+            for (auto& e : m_entityFactory.getEntites("Enemy"))
+            {
+                e->destroy();
+            }
+
+            // respawn
+            player->get<CTransform>().pos =
+                Vec2<f32>{(f32) windowSettings.width / 2.0f, (f32) windowSettings.height / 2.0f};
         }
     }
 }
