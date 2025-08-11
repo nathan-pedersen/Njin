@@ -70,9 +70,20 @@ class Game
     private:
         sf::RenderWindow* m_window;
         EntityFactory     m_entityFactory;
-        bool              m_paused  = false;
-        bool              m_running = true;
+        bool              m_paused      = false;
+        bool              m_running     = true;
         u32               m_totalFrames = 0;
+        sf::Clock         m_deltaClock;
+
+        sf::Clock      m_bulletClock;
+        const sf::Time m_bulletCooldown = sf::milliseconds(150);
+        u32            m_bulletShots    = 0;
+        sf::Clock      m_shotgunClock;
+        const sf::Time m_shotgunCooldown = sf::milliseconds(600);
+        u32            m_shotgunShots    = 0;
+        sf::Clock      m_specialClock;
+        const sf::Time m_specialCooldown = sf::milliseconds(15000);
+        u32            m_specialShots    = 0;
 
         WindowSettings windowSettings;
         FontSettings   fontSettings;

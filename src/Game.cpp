@@ -1,3 +1,5 @@
+#define _USE_MATH_DEFINES
+
 #include <SFML/Graphics.hpp>
 #include <print>
 
@@ -21,19 +23,35 @@ void Game::init(const std::string config)
 
     // window
     m_window = new sf::RenderWindow(sf::VideoMode(windowSettings.width, windowSettings.height),
-                                    "SFML Window");
+                                    "SFML Window", sf::Style::Default);
+
+    /* m_window = new sf::RenderWindow(sf::VideoMode::getDesktopMode(),
+                                     "SFML Window", sf::Style::Fullscreen);*/
+
+    m_window->setVerticalSyncEnabled(true);
     m_window->setPosition({50, 50});
     m_window->setFramerateLimit(windowSettings.frame_limit);
     (void) ImGui::SFML::Init(*m_window);
 
     // create player entity
     auto player = m_entityFactory.addEntity("Player");
-    player->add<CTransform>(Vec2(windowSettings.width / 2, windowSettings.height / 2), Vec2(0,0), 45);
-    player->add<CShape>(playerSettings.shape_radius, playerSettings.shape_vertices, playerSettings.fillColor, playerSettings.outline_color, playerSettings.outline_thickness);
+    player->add<CTransform>(Vec2<f32>(static_cast<f32>(windowSettings.width) / 2.0f,
+                                      static_cast<f32>(windowSettings.height) / 2.0f),
+                            Vec2<f32>(0, 0), 45);
+    player->add<CShape>(playerSettings.shape_radius, playerSettings.shape_vertices,
+                        playerSettings.fillColor, playerSettings.outline_color,
+                        playerSettings.outline_thickness);
     player->add<CInput>();
+    player->add<CCollision>(playerSettings.collision_radius);
 
+    auto player_pointer = m_entityFactory.addEntity("Player_Pointer");
+    player_pointer->add<CTransform>(player->get<CTransform>().pos,
+                                    player->get<CTransform>().velocity, 0);
+    player_pointer->add<CShape>(playerSettings.shape_radius / 5.0f, 3, playerSettings.fillColor,
+                                sf::Color::Red, playerSettings.outline_thickness);
+    player_pointer->add<CInput>();
+    player_pointer->add<CCollision>(playerSettings.collision_radius / 5.0f);
 
-    sf::Clock deltaClock;
     sf::Clock totalTime;
     while (m_window->isOpen())
     {
@@ -42,23 +60,52 @@ void Game::init(const std::string config)
         {
             ImGui::SFML::ProcessEvent(*m_window, event);
             if (event.type == sf::Event::Closed)
-            {
                 m_window->close();
-            }
         }
-        ImGui::SFML::Update(*m_window, deltaClock.restart());
+        ImGui::SFML::Update(*m_window, m_deltaClock.restart());
         sf::Text t(std::to_string(m_totalFrames), f, fontSettings.size);
         t.setFillColor(fontSettings.color);
 
         // -- imgui window setup
         ImGui::Begin("ImGui Window!", nullptr, ImGuiWindowFlags_MenuBar);
-
+        ImGui::Text("player vel x: %.2f, player vel y: %.2f", player->get<CTransform>().velocity.x,
+                    player->get<CTransform>().velocity.y);
+        ImGui::Text("down: %d, up: %d", player->get<CInput>().down, player->get<CInput>().up);
+        ImGui::Text("left: %d, right: %d", player->get<CInput>().left, player->get<CInput>().right);
+        ImGui::Text("shoot: %d", player->get<CInput>().shoot);
         ImGui::Checkbox("Pause", &m_paused);
+
+        for (auto& e : m_entityFactory.getEntites())
+        {
+            if (e->tag() == "Player" || e->tag() == "Player_Pointer")
+            {
+                ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.0f, 1.0f, 0.3f, 1.0f));
+            }
+            else if (e->tag() == "Enemy")
+            {
+                ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(1.0f, 0.0f, 0.3f, 1.0f));
+            }
+            else
+            {
+                ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.0f, 0.3f, 1.0f, 1.0f));
+            }
+            ImGui::Text("[%d] - %s", e->id(), e->tag().c_str());
+            if (e->has<CTransform>())
+            {
+                ImGui::SameLine();
+                ImGui::Text("@ [%.2f,%.2f], vel [%.2f,%.2f]", e->get<CTransform>().pos.x,
+                            e->get<CTransform>().pos.y, e->get<CTransform>().velocity.x,
+                            e->get<CTransform>().velocity.y);
+            }
+
+            ImGui::SameLine();
+            ImGui::Text("[%s]", (e->isAlive()) ? "alive" : "marked destroyed");
+            ImGui::PopStyleColor();
+        }
 
         ImGui::End();
         // -- imgui window setup end
 
-        m_entityFactory.update();
 
         // clear, draw, imgui render, display
         m_window->clear(sf::Color(30, 30, 30));
@@ -176,7 +223,8 @@ void Game::sMovement()
         {
             e->get<CShape>().shape.setPosition(e->get<CTransform>().pos);
 
-            // make enemies constantly rotate, anything else (just player right now) will not constantly rotate.
+            // make enemies constantly rotate, anything else (just player right now) will not
+            // constantly rotate.
             if (e->tag() == "Enemy")
             {
                 e->get<CShape>().shape.setRotation(e->get<CShape>().shape.getRotation() +
@@ -186,13 +234,145 @@ void Game::sMovement()
             {
                 e->get<CShape>().shape.setRotation(e->get<CTransform>().angle);
             }
-                
+        }
+
+        if (e->has<CInput>())
+        {
+            // apply correct velocity based on input
+            auto& in = e->get<CInput>();
+            auto& tr = e->get<CTransform>();
+
+            float vx = static_cast<float>(in.right) - static_cast<float>(in.left); // 1, 0, or -1
+            float vy = static_cast<float>(in.down) - static_cast<float>(in.up);    // 1, 0, or -1
+
+            Vec2 v{vx, vy};
+
+            // consistant diagonal speed
+            if (v.x != 0.f || v.y != 0.f)
+                v = v.normalized() * playerSettings.speed;
+
+            tr.velocity = v;
+
+            // rotate player towards mouse position
+            if (e->tag() == "Player" || e->tag() == "Player_Pointer")
+            {
+                sf::Vector2i _mp = sf::Mouse::getPosition(*m_window);
+                Vec2<i32>    mp  = {_mp.x, _mp.y};
+                Vec2<i32>    ipos{static_cast<int>(e->get<CTransform>().pos.x),
+                               static_cast<int>(e->get<CTransform>().pos.y)};
+                Vec2<i32>    sub = mp - ipos;
+                Vec2<f32>    subf{static_cast<f32>(sub.x), static_cast<f32>(sub.y)};
+                e->get<CTransform>().angle =
+                    (atan2f(subf.y, subf.x) * 180.0f / static_cast<f32>(M_PI) + 90.0f);
+            }
+            if (e->tag() == "Player_Pointer")
+            {
+                auto& vplayer = m_entityFactory.getEntites("Player");
+
+                sf::Vector2i _mp = sf::Mouse::getPosition(*m_window);
+                Vec2<i32>    mp  = {_mp.x, _mp.y};
+                Vec2<i32>    ipos{static_cast<i32>(e->get<CTransform>().pos.x),
+                               static_cast<i32>(e->get<CTransform>().pos.y)};
+                Vec2<i32>    sub  = mp - ipos;
+                Vec2<f32>    subf = {static_cast<f32>(sub.x), static_cast<f32>(sub.y)};
+                Vec2<f32> subfnr  = subf.normalized() * vplayer[0]->get<CShape>().shape.getRadius();
+                e->get<CTransform>().pos = vplayer[0]->get<CTransform>().pos + subfnr;
+            }
         }
     }
 }
 
 void Game::sUserInput()
 {
+    auto vplayer = m_entityFactory.getEntites("Player");
+    auto player  = vplayer[0];
+
+    for (auto& e : m_entityFactory.getEntites())
+    {
+        if (e->has<CInput>())
+        {
+            auto& in   = e->get<CInput>();
+            in.up      = sf::Keyboard::isKeyPressed(sf::Keyboard::W);
+            in.down    = sf::Keyboard::isKeyPressed(sf::Keyboard::S);
+            in.left    = sf::Keyboard::isKeyPressed(sf::Keyboard::A);
+            in.right   = sf::Keyboard::isKeyPressed(sf::Keyboard::D);
+            in.shoot   = sf::Mouse::isButtonPressed(sf::Mouse::Left);
+            in.shotgun = sf::Mouse::isButtonPressed(sf::Mouse::Right);
+
+            // Normal bullet fire
+            if (in.shoot &&
+                (m_bulletClock.getElapsedTime() >= m_bulletCooldown || m_bulletShots == 0))
+            {
+                auto bullet = m_entityFactory.addEntity("Bullet");
+
+                sf::Vector2i _mp    = sf::Mouse::getPosition(*m_window);
+                Vec2<i32>    mp     = {_mp.x, _mp.y};
+                Vec2<i32>    ppos   = {static_cast<i32>(player->get<CTransform>().pos.x),
+                                       static_cast<i32>(player->get<CTransform>().pos.y)};
+                Vec2<i32>    sub    = mp - ppos;
+                Vec2<f32>    subf   = {static_cast<f32>(sub.x), static_cast<f32>(sub.y)};
+                Vec2<f32>    subfns = subf.normalized() * bulletSettings.speed;
+                Vec2<f32>    vel    = subfns;
+
+                bullet->add<CTransform>(player->get<CTransform>().pos, vel,
+                                        rand_in_range_f64(-1.0f, 1.0f));
+                bullet->add<CShape>(bulletSettings.shape_radius, bulletSettings.shape_vertices,
+                                    bulletSettings.fill_color, bulletSettings.outline_color, 1);
+                bullet->add<CLifeSpan>(bulletSettings.lifespan);
+                bullet->add<CCollision>(bulletSettings.collision_radius);
+
+                m_bulletClock.restart();
+                m_bulletShots++;
+            }
+
+            // Shotgun bullet fire
+            if (in.shotgun &&
+                (m_shotgunClock.getElapsedTime() >= m_shotgunCooldown || m_shotgunShots == 0))
+            {
+                auto pellet1 = m_entityFactory.addEntity("Bullet");
+                auto pellet2 = m_entityFactory.addEntity("Bullet");
+                auto pellet3 = m_entityFactory.addEntity("Bullet");
+
+                sf::Vector2i _mp    = sf::Mouse::getPosition(*m_window);
+                Vec2<i32>    mp     = {_mp.x, _mp.y};
+                Vec2<i32>    ppos   = {static_cast<i32>(player->get<CTransform>().pos.x),
+                                       static_cast<i32>(player->get<CTransform>().pos.y)};
+                Vec2<i32>    sub    = mp - ppos;
+                Vec2<f32>    subf   = {static_cast<f32>(sub.x), static_cast<f32>(sub.y)};
+                Vec2<f32>    subfns = subf.normalized() * bulletSettings.speed;
+
+                Vec2<f32> vel_1 = subfns;
+                Vec2<f32> vel_2 = subfns.rotate(-8);
+                Vec2<f32> vel_3 = subfns.rotate(8);
+
+                pellet1->add<CTransform>(player->get<CTransform>().pos, vel_1,
+                                         rand_in_range_f64(-1.0f, 1.0f));
+                pellet1->add<CShape>(bulletSettings.shape_radius, bulletSettings.shape_vertices,
+                                     bulletSettings.fill_color, bulletSettings.outline_color, 1);
+                pellet1->add<CLifeSpan>(bulletSettings.lifespan);
+                pellet1->add<CCollision>(bulletSettings.collision_radius);
+
+                pellet2->add<CTransform>(player->get<CTransform>().pos, vel_2,
+                                         rand_in_range_f64(-1.0f, 1.0f));
+                pellet2->add<CShape>(bulletSettings.shape_radius, bulletSettings.shape_vertices,
+                                     bulletSettings.fill_color, bulletSettings.outline_color, 1);
+                pellet2->add<CLifeSpan>(bulletSettings.lifespan);
+                pellet2->add<CCollision>(bulletSettings.collision_radius);
+
+                pellet3->add<CTransform>(player->get<CTransform>().pos, vel_3,
+                                         rand_in_range_f64(-1.0f, 1.0f));
+                pellet3->add<CShape>(bulletSettings.shape_radius, bulletSettings.shape_vertices,
+                                     bulletSettings.fill_color, bulletSettings.outline_color, 1);
+                pellet3->add<CLifeSpan>(bulletSettings.lifespan);
+                pellet3->add<CCollision>(bulletSettings.collision_radius);
+
+                m_shotgunClock.restart();
+                m_shotgunShots++;
+            }
+
+            // Special fire
+        }
+    }
 }
 
 void Game::sEnemySpanwer()
@@ -202,8 +382,8 @@ void Game::sEnemySpanwer()
         return;
     }
 
-    Vec2 topLeftSpawnBounds;
-    Vec2 bottomRightSpawnBounds;
+    Vec2<f32> topLeftSpawnBounds;
+    Vec2<f32> bottomRightSpawnBounds;
 
     topLeftSpawnBounds.x = 0 + enemySettings.shape_radius;
     topLeftSpawnBounds.y = 0 + enemySettings.shape_radius;
@@ -216,11 +396,11 @@ void Game::sEnemySpanwer()
         // spawn enemy
         auto a = m_entityFactory.addEntity("Enemy");
         a->add<CTransform>(
-            Vec2::randomPointInBounds(topLeftSpawnBounds, bottomRightSpawnBounds),
-            Vec2(rand_in_range_f64(enemySettings.min_speed, enemySettings.max_speed) *
-                     rand_in_range_f64(-1.0, 1.0),
-                 rand_in_range_f64(enemySettings.min_speed, enemySettings.max_speed) *
-                     rand_in_range_f64(-1.0, 1.0)),
+            Vec2<f32>::randomPointInBounds(topLeftSpawnBounds, bottomRightSpawnBounds),
+            Vec2<f32>(rand_in_range_f64(enemySettings.min_speed, enemySettings.max_speed) *
+                          rand_in_range_f64(-1.0, 1.0),
+                      rand_in_range_f64(enemySettings.min_speed, enemySettings.max_speed) *
+                          rand_in_range_f64(-1.0, 1.0)),
             rand_in_range_f64(-1.0, 1.0));
 
         a->add<CShape>(enemySettings.shape_radius,
@@ -228,7 +408,10 @@ void Game::sEnemySpanwer()
                        playerSettings.fillColor, enemySettings.outline_color,
                        playerSettings.outline_thickness);
 
+        a->add<CCollision>(enemySettings.collision_radius);
+
         a->get<CShape>().shape.setPosition(a->get<CTransform>().pos);
+        std::println("Spawned Enemy");
     }
 }
 
@@ -236,8 +419,35 @@ void Game::sCollision()
 {
     for (auto& e : m_entityFactory.getEntites())
     {
+        if (!e->has<CCollision>())
+            continue;
+
         if (!e->has<CTransform>())
             continue;
+
+        if (e->tag() == "Player")
+        {
+            if (e->get<CTransform>().pos.x <= 0 + e->get<CShape>().shape.getRadius())
+            {
+                e->get<CTransform>().pos.x = 0 + e->get<CShape>().shape.getRadius();
+            }
+            if (e->get<CTransform>().pos.x + e->get<CShape>().shape.getRadius() >
+                windowSettings.width)
+            {
+                e->get<CTransform>().pos.x =
+                    windowSettings.width - e->get<CShape>().shape.getRadius();
+            }
+            if (e->get<CTransform>().pos.y < 0 + e->get<CShape>().shape.getRadius())
+            {
+                e->get<CTransform>().pos.y = 0 + e->get<CShape>().shape.getRadius();
+            }
+            if (e->get<CTransform>().pos.y + e->get<CShape>().shape.getRadius() >
+                windowSettings.height)
+            {
+                e->get<CTransform>().pos.y =
+                    windowSettings.height - e->get<CShape>().shape.getRadius();
+            }
+        }
 
         if (e->get<CTransform>().pos.x < 0 + e->get<CShape>().shape.getRadius() ||
             e->get<CTransform>().pos.x + e->get<CShape>().shape.getRadius() > windowSettings.width)
@@ -249,6 +459,20 @@ void Game::sCollision()
             e->get<CTransform>().pos.y + e->get<CShape>().shape.getRadius() > windowSettings.height)
         {
             e->get<CTransform>().velocity.y *= -1;
+        }
+    }
+
+    // check collision between bullets and enemies
+    for (auto& b : m_entityFactory.getEntites("Bullet"))
+    {
+        for (auto& e : m_entityFactory.getEntites("Enemy"))
+        {
+            f32 dist = (b->get<CTransform>().pos - e->get<CTransform>().pos).length();
+            if (dist <= bulletSettings.collision_radius + enemySettings.collision_radius)
+            {
+                b->destroy();
+                e->destroy();
+            }
         }
     }
 }
@@ -271,7 +495,7 @@ void Game::sLifespan()
         if (!e->has<CLifeSpan>())
             continue;
 
-        if (e->get<CLifeSpan>().remainingLifeSpan <= 0)
+        if (e->get<CLifeSpan>().remainingLifeSpan <= 1)
         {
             e->destroy();
         }
@@ -300,6 +524,7 @@ void Game::update()
 {
     if (!m_paused)
     {
+        m_entityFactory.update();
         sMovement();
         sUserInput();
         sEnemySpanwer();
