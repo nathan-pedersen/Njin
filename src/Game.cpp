@@ -139,7 +139,7 @@ void Game::init(const std::string config)
 
         ImGui::End();
         // -- imgui window setup end
-
+        
         // clear, draw, imgui render, display
         m_window->clear(sf::Color(30, 30, 30));
 
@@ -440,7 +440,7 @@ void Game::sUserInput()
                                        static_cast<i32>(player->get<CTransform>().pos.y)};
                 Vec2<i32>    sub    = mp - ppos;
                 Vec2<f32>    subf   = {static_cast<f32>(sub.x), static_cast<f32>(sub.y)};
-                Vec2<f32>    subfns = subf.normalized() * bulletSettings.speed;
+                Vec2<f32>    subfns = subf.normalized() * bulletSettings.speed * 1.5;
 
                 Vec2<f32> vel_1  = subfns;
                 Vec2<f32> vel_2  = subfns.rotate(20);
@@ -726,6 +726,7 @@ void Game::sCollision()
         {
             // TODO: reset something on death (points, upgrades, etc)
             m_paused = true;
+            m_points = 0;
             for (auto& e : m_entityFactory.getEntites("Enemy"))
             {
                 e->destroy();
