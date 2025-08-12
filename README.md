@@ -2,10 +2,10 @@
 #### Dependencies
 - SFML 2.6.2
 
-Simple Game Engine in using SFML 2 and ImGui
+Simple game engine using SFML 2 and ImGui.
 
 #### usage
-- build with cmake
+Build with CMake.
 ```
 git clone --recurse-submodules https://github.com/nathan-pedersen/Njin
 mkdir build
