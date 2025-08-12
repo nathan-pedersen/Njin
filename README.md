@@ -4,8 +4,8 @@
 
 Simple Game Engine in using SFML 2 and ImGui
 
-# usage
-build with cmake
+#### usage
+- build with cmake
 ```
 git clone --recurse-submodules https://github.com/nathan-pedersen/Njin
 mkdir build
